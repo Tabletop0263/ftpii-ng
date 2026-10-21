@@ -1,0 +1,19 @@
+name: build
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitppc:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: make -j$(nproc)
+      - name: Package for Homebrew Channel
+        run: |
+          mkdir -p out/apps/ftpii-ng
+          cp boot.dol out/apps/ftpii-ng/boot.dol
+          cp hbc/meta.xml hbc/icon.png out/apps/ftpii-ng/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ftpii-ng
+          path: out

@@ -1,17 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <app version="1">
-  <name>ftpii</name>
-  <coder>joedj</coder>
-  <version>0.0.21</version>
-  <release_date>20100227170000</release_date>
-  <short_description>An FTP server</short_description> 
-  <long_description>ftpii is an FTP server.
+  <name>ftpii-ng</name>
+  <coder>ftpii-ng (based on ftpii by joedj)</coder>
+  <version>1.0.0</version>
+  <short_description>Fast, reliable FTP server</short_description>
+  <long_description>ftpii-ng is a rewrite of ftpii: pipelined SD/USB transfers, live speed display, resume support, MLSD/EPSV, and no more hung clients.
 
-To exit, hold A on controller #1 or press the reset button.
-To remount a device, hold B on controller #1.
-To specify a password, rename the apps/ftpii directory to apps/ftpii_YourPassword.
-To specify a password remotely, use the SITE PASSWD and SITE NOPASSWD commands.
-
-A working DVDx installation is required for the DVD features.</long_description> 
-
+HOME / START: exit.  B: remount SD/USB.
+Password: rename apps/ftpii-ng to apps/ftpii_YourPassword, or SITE PASSWD / SITE NOPASSWD.</long_description>
 </app>

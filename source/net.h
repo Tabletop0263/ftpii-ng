@@ -1,43 +1,25 @@
-/*
+/* ftpii-ng -- based on ftpii by Joseph Jordan (zlib license, see LICENSE.txt) */
+#ifndef NET_H
+#define NET_H
 
-Copyright (C) 2008 Joseph Jordan <joe.ftpii@psychlaw.com.au>
+#include <gccore.h>
+#include <network.h>
 
-This software is provided 'as-is', without any express or implied warranty.
-In no event will the authors be held liable for any damages arising from
-the use of this software.
+u64 now_ms(void);
 
-Permission is granted to anyone to use this software for any purpose,
-including commercial applications, and to alter it and redistribute it
-freely, subject to the following restrictions:
+/* Blocks until the network is up (or abort_flag set). Returns true if connected. */
+bool net_start(volatile bool *abort_flag);
+const char *net_ip_string(void);
 
-1.The origin of this software must not be misrepresented; you must not
-claim that you wrote the original software. If you use this software in a
-product, an acknowledgment in the product documentation would be
-appreciated but is not required.
+s32 net_create_server(u16 port);
+s32 net_set_nonblock(s32 s, bool nonblock);
+void net_fast_close(s32 s);
 
-2.Altered source versions must be plainly marked as such, and must not be
-misrepresented as being the original software.
+/* Chunk-clamped IO that auto-falls back to 4K if the IOS rejects 32K buffers. */
+s32 net_read_chunk(s32 s, void *buf, s32 len);
+s32 net_write_chunk(s32 s, const void *buf, s32 len);
 
-3.This notice may not be removed or altered from any source distribution.
+/* Send everything on a non-blocking socket, giving up after timeout_ms of no progress. */
+s32 net_send_all(s32 s, const void *buf, s32 len, u32 timeout_ms);
 
-*/
-#ifndef _NET_H_
-#define _NET_H_
-
-#include <stdio.h>
-
-void initialise_network();
-
-s32 set_blocking(s32 s, bool blocking);
-
-s32 net_close_blocking(s32 s);
-
-s32 create_server(u16 port);
-
-s32 send_exact(s32 s, char *buf, s32 length);
-
-s32 send_from_file(s32 s, FILE *f);
-
-s32 recv_to_file(s32 s, FILE *f);
-
-#endif /* _NET_H_ */
+#endif

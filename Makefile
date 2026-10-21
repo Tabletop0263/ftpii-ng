@@ -1,29 +1,31 @@
-ifeq ($(strip $(DEVKITPPC)),)
-$(error "Please set DEVKITPPC in your environment. export DEVKITPPC=<path to>devkitPPC)
-endif
-
 .SUFFIXES:
+ifeq ($(strip $(DEVKITPPC)),)
+$(error "Please set DEVKITPPC in your environment. export DEVKITPPC=<path to>devkitPPC")
+endif
 
 include $(DEVKITPPC)/wii_rules
 
-TARGET	= ftpii
-SOURCES	= source
-BUILD	= build
+TARGET   := boot
+BUILD    := build
+SOURCES  := source
+INCLUDES :=
+LIBS     := -lfat -lwiiuse -lbte -logc -lm
 
-CFLAGS				= -g -O2 -Wall $(MACHDEP) $(INCLUDE)
-LDFLAGS				= -L$(LIBOGC_LIB) -lntfs -lseeprom -lotp -lisfs -lnandimg -lfst -lwod -liso -ldi -lwiiuse -lbte -lfat -logc -lm -g $(MACHDEP) -Wl,-Map,$(notdir $@).map,--section-start,.init=0x80a00000
-PRELOADER_LDFLAGS	= -L$(LIBOGC_LIB) -logc -g $(MACHDEP) -Wl,-Map,$(notdir $@).map
+CFLAGS   = -g -O2 -Wall $(MACHDEP) $(INCLUDE)
+LDFLAGS  = -g $(MACHDEP) -Wl,-Map,$(notdir $@).map
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
-export OUTPUT	:= $(CURDIR)/$(TARGET)
-export VPATH	:= $(foreach dir,$(SOURCES),$(CURDIR)/$(dir))
-export DEPSDIR	:= $(CURDIR)/$(BUILD)
-export LD		:= $(CC)
+export OUTPUT  := $(CURDIR)/$(TARGET)
+export VPATH   := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir))
+export DEPSDIR := $(CURDIR)/$(BUILD)
 
-export OFILES			:= reset.o dvd.o pad.o net.o fs.o ftp.o loader.o vrt.o dol.o ftpii.o
-export PRELOADER_OFILES	:= _$(TARGET).dol.o dol.o preloader.o
-export INCLUDE			:= -I$(CURDIR)/$(BUILD) -I$(LIBOGC_INC)
+CFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+export OFILES   := $(CFILES:.c=.o)
+export LD       := $(CC)
+export INCLUDE  := $(foreach dir,$(INCLUDES),-iquote $(CURDIR)/$(dir)) \
+                   -I$(CURDIR)/$(BUILD) -I$(LIBOGC_INC) -I$(PORTLIBS)/include
+export LIBPATHS := -L$(LIBOGC_LIB) -L$(PORTLIBS)/lib
 
 .PHONY: $(BUILD) clean run
 
@@ -32,25 +34,21 @@ $(BUILD):
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 clean:
-	@rm -rf $(BUILD) $(TARGET).dol $(TARGET).elf
+	@echo clean ...
+	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).dol
 
 run:
-	@wiiload $(TARGET).dol
+	wiiload $(OUTPUT).dol
 
 else
 
+DEPENDS := $(OFILES:.o=.d)
+
 $(OUTPUT).dol: $(OUTPUT).elf
-
-$(OUTPUT).elf: $(PRELOADER_OFILES)
+$(OUTPUT).elf: $(OFILES)
 	@echo linking ... $(notdir $@)
-	@$(LD) $^ $(PRELOADER_LDFLAGS) -o $@
+	@$(LD) $^ $(LDFLAGS) $(LIBPATHS) $(LIBS) -o $@
 
-%.dol.o: %.dol
-	@$(bin2o)
-
-_$(TARGET).elf: $(OFILES)
-
-DEPENDS = $(OFILES:.o=.d) $(PRELOADER_OFILES:.o=.d)
 -include $(DEPENDS)
 
 endif
