@@ -573,7 +573,7 @@ static int cmd_MLST(client_t *c, char *arg) {
 
 static void short_name(const char *vpath, char *out, size_t n) {
     const char *b = strrchr(vpath, '/');
-    snprintf(out, n, "%s", b ? b + 1 : vpath);
+    snprintf(out, n, "%.47s", b ? b + 1 : vpath);
 }
 
 static int cmd_RETR(client_t *c, char *arg) {

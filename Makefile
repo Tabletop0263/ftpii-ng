@@ -24,8 +24,8 @@ CFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 export OFILES   := $(CFILES:.c=.o)
 export LD       := $(CC)
 export INCLUDE  := $(foreach dir,$(INCLUDES),-iquote $(CURDIR)/$(dir)) \
-                   -I$(CURDIR)/$(BUILD) -I$(LIBOGC_INC) -I$(PORTLIBS)/include
-export LIBPATHS := -L$(LIBOGC_LIB) -L$(PORTLIBS)/lib
+                   -I$(CURDIR)/$(BUILD) -I$(LIBOGC_INC)
+export LIBPATHS := -L$(LIBOGC_LIB)
 
 .PHONY: $(BUILD) clean run
 
