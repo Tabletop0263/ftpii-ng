@@ -1,6 +1,5 @@
 /* ftpii-ng -- based on ftpii by Joseph Jordan (zlib license, see LICENSE.txt) */
 #include <gccore.h>
-#include <libgen.h>
 #include <network.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,8 +40,12 @@ static void video_init(void) {
 static void password_from_path(const char *exe) {
     char tmp[256];
     snprintf(tmp, sizeof(tmp), "%s", exe);
-    char *dir = basename(dirname(tmp));
-    if (dir && !strncasecmp(dir, APP_DIR_PREFIX, strlen(APP_DIR_PREFIX)))
+    char *last = strrchr(tmp, '/');
+    if (!last) return;
+    *last = '\0';
+    char *dir = strrchr(tmp, '/');
+    dir = dir ? dir + 1 : tmp;
+    if (!strncasecmp(dir, APP_DIR_PREFIX, strlen(APP_DIR_PREFIX)))
         ftp_set_password(dir + strlen(APP_DIR_PREFIX));
 }
 
