@@ -52,6 +52,12 @@ typedef struct {
     bool xfer_counted;
 } client_t;
 
+/* ms elapsed since t; never underflows if t is slightly in the future */
+static u64 since(u64 t) {
+    u64 n = now_ms();
+    return n > t ? n - t : 0;
+}
+
 static client_t *clients[MAX_CLIENTS];
 static char *password = NULL;
 static u16 pasv_port_next = 40000;
@@ -251,7 +257,7 @@ static bool data_poll(client_t *c) {
             c->dlast_ms = now;
             return true;
         }
-        if (now - c->dstart_ms > DATA_CONNECT_TIMEOUT_MS) {
+        if (since(c->dstart_ms) > DATA_CONNECT_TIMEOUT_MS) {
             ui_log("data connection timed out");
             data_finish(c, -ETIMEDOUT);
             return true;
@@ -299,7 +305,7 @@ static bool data_poll(client_t *c) {
         data_finish(c, r);
         return true;
     }
-    if (now - c->dlast_ms > DATA_STALL_TIMEOUT_MS) {
+    if (since(c->dlast_ms) > DATA_STALL_TIMEOUT_MS) {
         ui_log("transfer stalled, aborting");
         data_finish(c, -ETIMEDOUT);
         return true;
@@ -856,7 +862,7 @@ bool ftp_poll(s32 server, bool *network_down) {
             if (data_poll(c)) work = true;
         } else if (do_ctl) {
             control_poll(c);
-            if (now - c->last_cmd_ms > IDLE_TIMEOUT_MS && !c->quit) {
+            if (since(c->last_cmd_ms) > IDLE_TIMEOUT_MS && !c->quit) {
                 reply(c, 421, "Idle timeout.");
                 c->quit = true;
             }
