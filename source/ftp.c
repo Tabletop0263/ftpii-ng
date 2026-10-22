@@ -158,7 +158,7 @@ static void mlsx_fact(sb_t *sb, const char *name, const struct stat *st, bool fu
 
 static void close_pasv(client_t *c) {
     if (c->pasv_sock >= 0) {
-        net_fast_close(c->pasv_sock);
+        net_close_blocking(c->pasv_sock);
         c->pasv_sock = -1;
     }
 }
@@ -173,7 +173,7 @@ static void data_cleanup(client_t *c, int *close_result) {
     c->mem = NULL;
     c->mem_len = c->mem_pos = 0;
     if (c->dsock >= 0) {
-        net_fast_close(c->dsock);
+        net_close_blocking(c->dsock);
         c->dsock = -1;
     }
     close_pasv(c);
@@ -767,7 +767,7 @@ static void handle_command(client_t *c, char *line) {
 
 static void client_free(client_t *c) {
     data_cleanup(c, NULL);
-    net_fast_close(c->sock);
+    net_close_blocking(c->sock);
     int i = client_index(c);
     if (i >= 0) clients[i] = NULL;
     free(c);
@@ -818,7 +818,7 @@ static bool accept_clients(s32 server) {
         if (!c) {
             const char *msg = "421 Too many connections.\r\n";
             net_send_all(p, msg, (s32)strlen(msg), 1000);
-            net_close(p);
+            net_close_blocking(p);
             continue;
         }
         c->sock = p;

@@ -52,8 +52,12 @@ s32 net_set_nonblock(s32 s, bool nonblock) {
     return net_fcntl(s, F_SETFL, nonblock ? (flags | IOS_O_NONBLOCK) : (flags & ~IOS_O_NONBLOCK));
 }
 
-void net_fast_close(s32 s) {
-    if (s >= 0) net_close(s);
+/* Switch to blocking before closing: closing a non-blocking socket on IOS can drop
+ * unsent data and reset the connection instead of closing it cleanly. */
+s32 net_close_blocking(s32 s) {
+    if (s < 0) return 0;
+    net_set_nonblock(s, false);
+    return net_close(s);
 }
 
 s32 net_create_server(u16 port) {

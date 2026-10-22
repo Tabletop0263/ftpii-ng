@@ -13,7 +13,7 @@ const char *net_ip_string(void);
 
 s32 net_create_server(u16 port);
 s32 net_set_nonblock(s32 s, bool nonblock);
-void net_fast_close(s32 s);
+s32 net_close_blocking(s32 s);
 
 /* Chunk-clamped IO that auto-falls back to 4K if the IOS rejects 32K buffers. */
 s32 net_read_chunk(s32 s, void *buf, s32 len);
