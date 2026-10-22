@@ -111,20 +111,22 @@ s32 net_write_chunk(s32 s, const void *buf, s32 len) {
 }
 
 s32 net_send_all(s32 s, const void *buf, s32 len, u32 timeout_ms) {
+    (void)timeout_ms;
     const char *p = buf;
-    u64 last_progress = now_ms();
+    s32 result = 0;
+    /* Must be blocking: libogc's net_sendto() returns -EAGAIN and discards the count of bytes it
+     * already sent if a non-blocking send is accepted partially, which duplicates data on the wire. */
+    net_set_nonblock(s, false);
     while (len > 0) {
         s32 r = net_write_chunk(s, p, len);
         if (r > 0) {
             p += r;
             len -= r;
-            last_progress = now_ms();
-        } else if (r == 0 || r == -EAGAIN) {
-            if (now_ms() - last_progress > timeout_ms) return -ETIMEDOUT;
-            usleep(500);
         } else {
-            return r;
+            result = (r < 0) ? r : -ENODATA;
+            break;
         }
     }
-    return 0;
+    net_set_nonblock(s, true);
+    return result;
 }

@@ -255,7 +255,8 @@ static bool data_poll(client_t *c) {
             }
         }
         if (c->dconnected) {
-            net_set_nonblock(c->dsock, true);
+            /* Sending needs a blocking socket (see net_send_all); receiving stays non-blocking. */
+            net_set_nonblock(c->dsock, c->dk == DK_RECV_FILE);
             c->dlast_ms = now;
             return true;
         }
