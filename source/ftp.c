@@ -211,7 +211,9 @@ static void data_finish(client_t *c, int result) {
     int close_res = 0;
     bool was_file = (c->dk == DK_SEND_FILE || c->dk == DK_RECV_FILE);
     dkind_t was = c->dk;
+    u64 moved = c->xf ? xfer_total(c->xf) : 0;
     data_cleanup(c, &close_res);
+    if (was_file) ui_log("%s: %llu bytes, %s", was == DK_RECV_FILE ? "upload" : "download", (unsigned long long)moved, result == 0 && close_res == 0 ? "ok" : "FAILED");
     if (result == 0 && was_file && close_res != 0 && was == DK_RECV_FILE) result = -EIO;
     if (result == 0) reply(c, 226, "Transfer complete.");
     else if (result == -ETIMEDOUT) reply(c, 426, "Transfer timed out.");
@@ -371,6 +373,7 @@ static int cmd_TYPE(client_t *c, char *arg) {
     char t = (char)toupper((unsigned char)arg[0]);
     if (t == 'A' || t == 'I' || t == 'L') {
         c->type = (t == 'A') ? 'A' : 'I';
+        ui_log("TYPE %c", t);
         return reply(c, 200, "Type set.");
     }
     return reply(c, 504, "Type not supported.");

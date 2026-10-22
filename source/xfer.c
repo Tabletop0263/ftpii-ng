@@ -12,7 +12,7 @@
 
 #define XF_BUFS 8
 #define XF_BUFSZ 32768
-#define XF_STACK (32 * 1024)
+#define XF_STACK (64 * 1024)
 #define XF_PRIO 64
 
 #define BARRIER() __asm__ volatile("" ::: "memory")
@@ -27,6 +27,7 @@ struct xfer {
     volatile int eof;
     volatile int err;
     volatile int quit;
+    u64 total;   /* bytes moved over the network so far */
     u32 sendpos; /* main thread: progress inside the buffer being sent */
     u8 *cur;     /* main thread: buffer being filled by recv */
     u32 fill;
@@ -123,6 +124,7 @@ int xfer_send_step(xfer_t *x, s32 sock) {
         s32 r = net_write_chunk(sock, x->buf[slot] + x->sendpos, len - x->sendpos);
         if (r > 0) {
             x->sendpos += r;
+            x->total += r;
             ui_add_bytes(r);
             progressed = 1;
         } else if (r == 0 || r == -EAGAIN) {
@@ -164,12 +166,13 @@ int xfer_recv_step(xfer_t *x, s32 sock) {
         s32 r = net_read_chunk(sock, x->cur + x->fill, XF_BUFSZ - x->fill);
         if (r > 0) {
             x->fill += r;
+            x->total += r;
             ui_add_bytes(r);
             progressed = 1;
             if (x->fill >= XF_BUFSZ) commit(x);
         } else if (r == -EAGAIN) {
-            /* keep the disk busy: hand over a partial buffer if the writer is idle */
-            if (x->fill > 0 && x->head == x->tail) commit(x);
+            /* Only ever hand the writer full 32 KiB blocks (plus the final tail at EOF), so every
+             * SD write starts on a sector boundary and DMA buffers stay 32-byte aligned. */
             break;
         } else if (r == 0) {
             if (x->fill > 0) commit(x);
@@ -181,6 +184,10 @@ int xfer_recv_step(xfer_t *x, s32 sock) {
         }
     }
     return progressed ? XF_PROGRESS : XF_BUSY;
+}
+
+u64 xfer_total(xfer_t *x) {
+    return x ? x->total : 0;
 }
 
 int xfer_close(xfer_t *x) {

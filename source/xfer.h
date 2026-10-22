@@ -21,6 +21,7 @@ xfer_t *xfer_open_read(FILE *f);  /* RETR: file -> network */
 xfer_t *xfer_open_write(FILE *f); /* STOR: network -> file */
 int xfer_send_step(xfer_t *x, s32 sock);
 int xfer_recv_step(xfer_t *x, s32 sock);
+u64 xfer_total(xfer_t *x); /* bytes moved over the network so far */
 /* Stops the worker, closes the file, frees everything. Returns 0 if the file closed cleanly. */
 int xfer_close(xfer_t *x);
 
