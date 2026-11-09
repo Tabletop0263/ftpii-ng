@@ -1,5 +1,5 @@
 # ftpii-ng
-
+WORK IN PROGRESS!!!
 A rewrite of [ftpii](https://github.com/joedj/ftpii) (Joseph Jordan, zlib license) for current devkitPPC/libogc.
 **Altered source version, not the original ftpii.** Original license notice kept in `LICENSE.txt`.
 
