@@ -6,8 +6,8 @@
 
 #include "ui.h"
 
-#define LOG_LINES 12
-#define LOG_W 72
+#define LOG_LINES 10
+#define LOG_W 68
 
 static char log_lines[LOG_LINES][LOG_W + 1];
 static u32 log_count = 0;
@@ -19,6 +19,7 @@ static int active_xfers = 0;
 static bool sd_ok = false, usb_ok = false;
 static char xfer_name[48] = "";
 static bool xfer_up = false;
+static u64 xfer_bytes = 0;   /* bytes in the current active transfer */
 static u64 total_bytes = 0;
 static u64 last_bytes = 0;
 static u64 last_draw = 0;
@@ -74,6 +75,7 @@ void ui_set_devices(bool sd, bool usb) {
 void ui_xfer_begin(const char *name, bool upload) {
     snprintf(xfer_name, sizeof(xfer_name), "%s", name);
     xfer_up = upload;
+    xfer_bytes = 0;
     active_xfers++;
     dirty = true;
 }
@@ -85,12 +87,13 @@ void ui_xfer_end(void) {
 
 void ui_add_bytes(u32 n) {
     total_bytes += n;
+    xfer_bytes += n;
 }
 
 void ui_tick(void) {
     u64 now = gettime();
     u32 ms = ticks_to_millisecs(now - last_draw);
-    if (ms < 500) return;
+    if (ms < 250) return;            /* 4 Hz redraw */
     if (!dirty && active_xfers == 0) return;
 
     double inst = (double)(total_bytes - last_bytes) * 1000.0 / (double)(ms ? ms : 1);
@@ -100,30 +103,35 @@ void ui_tick(void) {
     last_draw = now;
     dirty = false;
 
-    char sp[24], tot[24];
+    char sp[24], tot[24], xb[24];
     fmt_size(sp, sizeof(sp), speed);
     fmt_size(tot, sizeof(tot), (double)total_bytes);
+    fmt_size(xb, sizeof(xb), (double)xfer_bytes);
 
     printf("\x1b[H\x1b[J");
-    printf("\x1b[36;1mftpii-ng 1.0\x1b[37;0m  fast FTP for Wii\n");
+    printf("\x1b[36;1mftpii-ng\x1b[37;0m  fast FTP for Wii\n");
     printf("ftp://%s:%u\n", ip_str, port_no);
-    printf("SD: %s   USB: %s   Clients: %d\n", sd_ok ? "ok" : "--", usb_ok ? "ok" : "--", nclients);
-    printf("%s\n\n", status);
+    printf("SD: %s   USB: %s   Clients: %d\n",
+           sd_ok ? "ok" : "--", usb_ok ? "ok" : "--", nclients);
+    printf("Status: %s\n", status);
 
     if (active_xfers > 0) {
-        printf("%s %s\n", xfer_up ? "UP  " : "DOWN", xfer_name);
-        int fill = (int)(speed / (6.0f * 1048576.0f) * 30.0f);
+        printf("\nTransfer: %s %s\n", xfer_up ? "UP  " : "DOWN", xfer_name);
+        int fill = (int)(speed / (6.0f * 1048576.0f) * 26.0f);
         if (fill < 0) fill = 0;
-        if (fill > 30) fill = 30;
+        if (fill > 26) fill = 26;
         char bar[32];
         int i;
-        for (i = 0; i < 30; i++) bar[i] = i < fill ? '#' : '-';
-        bar[30] = '\0';
-        printf("[%s] %s/s\n", bar, sp);
+        for (i = 0; i < 26; i++) bar[i] = i < fill ? '#' : '-';
+        bar[26] = '\0';
+        printf("[%s] %s/s  %s", bar, sp, xb);
+        if (active_xfers > 1) printf("  [%d active]", active_xfers);
+        printf("\n\n");
     } else {
-        printf("idle\n\n");
+        printf("\nidle\n\n");
     }
-    printf("session total: %s\n\n", tot);
+
+    printf("Session total: %s\n\n", tot);
 
     u32 shown = log_count < LOG_LINES ? log_count : LOG_LINES;
     u32 i;
