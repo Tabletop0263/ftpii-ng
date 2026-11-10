@@ -23,20 +23,6 @@ static void on_reset(u32 irq, void *ctx) { quit_flag = true; }
 static void on_power(void) { quit_flag = true; power_flag = true; }
 static void on_wpad_power(s32 chan) { on_power(); }
 
-static void video_init(void) {
-    VIDEO_Init();
-    GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
-    void *xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
-    VIDEO_Configure(rmode);
-    VIDEO_SetNextFramebuffer(xfb);
-    console_init(xfb, 20, 20, rmode->fbWidth - 40, rmode->xfbHeight - 40, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-    VIDEO_ClearFrameBuffer(rmode, xfb, COLOR_BLACK);
-    VIDEO_SetBlack(FALSE);
-    VIDEO_Flush();
-    VIDEO_WaitVSync();
-    if (rmode->viTVMode & VI_NON_INTERLACE) VIDEO_WaitVSync();
-}
-
 static void password_from_path(const char *exe) {
     char tmp[256];
     snprintf(tmp, sizeof(tmp), "%s", exe);
@@ -62,13 +48,14 @@ static void poll_input(void) {
 }
 
 int main(int argc, char **argv) {
-    video_init();
+    /* ui_init() initialises video/GX/console and draws the first frame. */
+    ui_init();
+
     PAD_Init();
     WPAD_Init();
     SYS_SetResetCallback(on_reset);
     SYS_SetPowerCallback(on_power);
     WPAD_SetPowerButtonCallback(on_wpad_power);
-    ui_init();
 
     if (argc > 1) ftp_set_password(argv[1]);
     else if (argc == 1 && argv[0]) password_from_path(argv[0]);
