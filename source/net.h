@@ -7,6 +7,9 @@
 
 u64 now_ms(void);
 
+/* Elapsed milliseconds since t; never underflows if t is slightly in the future. */
+u64 since(u64 t);
+
 /* Blocks until the network is up (or abort_flag set). Returns true if connected. */
 bool net_start(volatile bool *abort_flag);
 const char *net_ip_string(void);

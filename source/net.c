@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/fcntl.h>
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include "net.h"
@@ -111,9 +114,9 @@ s32 net_write_chunk(s32 s, const void *buf, s32 len) {
 }
 
 s32 net_send_all(s32 s, const void *buf, s32 len, u32 timeout_ms) {
-    (void)timeout_ms;
     const char *p = buf;
     s32 result = 0;
+    u64 start = now_ms();
     /* Must be blocking: libogc's net_sendto() returns -EAGAIN and discards the count of bytes it
      * already sent if a non-blocking send is accepted partially, which duplicates data on the wire. */
     net_set_nonblock(s, false);
@@ -122,8 +125,20 @@ s32 net_send_all(s32 s, const void *buf, s32 len, u32 timeout_ms) {
         if (r > 0) {
             p += r;
             len -= r;
+            start = now_ms();
+        } else if (r == -EAGAIN) {
+            /* Wait until the socket is writable again, honoring timeout_ms. */
+            fd_set wf;
+            FD_ZERO(&wf);
+            FD_SET(s, &wf);
+            struct timeval tv;
+            u64 elapsed = since(start);
+            if (elapsed >= timeout_ms) { result = -ETIMEDOUT; break; }
+            tv.tv_sec = (long)((timeout_ms - elapsed) / 1000);
+            tv.tv_usec = (long)((timeout_ms - elapsed) % 1000) * 1000;
+            if (select(s + 1, NULL, &wf, NULL, &tv) <= 0) { result = -ETIMEDOUT; break; }
         } else {
-            result = (r < 0) ? r : -ENODATA;
+            result = r < 0 ? r : -ENODATA;
             break;
         }
     }

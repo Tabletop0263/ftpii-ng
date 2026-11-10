@@ -7,6 +7,9 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include "ftp.h"
@@ -53,7 +56,7 @@ typedef struct {
 } client_t;
 
 /* ms elapsed since t; never underflows if t is slightly in the future */
-static u64 since(u64 t) {
+u64 since(u64 t) {
     u64 n = now_ms();
     return n > t ? n - t : 0;
 }
@@ -161,6 +164,8 @@ static void close_pasv(client_t *c) {
         net_close_blocking(c->pasv_sock);
         c->pasv_sock = -1;
     }
+    /* A data socket is no longer valid, so clear any stale PORT state too. */
+    c->have_port = false;
 }
 
 static void data_cleanup(client_t *c, int *close_result) {
@@ -186,7 +191,42 @@ static void data_cleanup(client_t *c, int *close_result) {
     }
 }
 
-/* Called after the command handler has set dk/xf/mem. Sends 150 and arms timers. */
+static void data_finish(client_t *c, int result);
+
+/* Wait for a non-blocking connect() to complete, honoring DATA_CONNECT_TIMEOUT_MS.
+   Returns true when the attempt is resolved (connected or failed -- data_finish
+   is called on failure). Returns false if still pending. */
+static bool data_connect_wait(client_t *c) {
+    if (since(c->dstart_ms) > DATA_CONNECT_TIMEOUT_MS) {
+        ui_log("data connection timed out");
+        data_finish(c, -ETIMEDOUT);
+        return true;
+    }
+    fd_set wf;
+    FD_ZERO(&wf);
+    FD_SET(c->dsock, &wf);
+    struct timeval tv;
+    u64 remaining = DATA_CONNECT_TIMEOUT_MS - since(c->dstart_ms);
+    tv.tv_sec = (long)(remaining / 1000);
+    tv.tv_usec = (long)(remaining % 1000) * 1000;
+    if (select(c->dsock + 1, NULL, &wf, NULL, &tv) <= 0) {
+        return false; /* still pending */
+    }
+    int err = 0;
+    socklen_t el = sizeof(err);
+    if (getsockopt(c->dsock, SOL_SOCKET, SO_ERROR, &err, &el) < 0) {
+        /* getsockopt itself failed: report errno as the connect error. */
+        data_finish(c, -errno);
+        return true;
+    }
+    if (err != 0) {
+        data_finish(c, -err);
+        return true;
+    }
+    c->dconnected = true;
+    c->dlast_ms = now_ms();
+    return true;
+}
 static int data_begin(client_t *c, const char *label, bool upload) {
     if (reply(c, 150, "Opening data connection.") < 0) return -1;
     c->dconnected = false;
@@ -254,13 +294,19 @@ static bool data_poll(client_t *c) {
                 return true;
             }
         }
+        if (!c->dconnected) {
+            /* Active-mode connect in progress: wait for it to complete via select+SO_ERROR. */
+            if (c->pasv_sock < 0 && !data_connect_wait(c)) return false;
+        }
         if (c->dconnected) {
             /* Sending needs a blocking socket (see net_send_all); receiving stays non-blocking. */
             net_set_nonblock(c->dsock, c->dk == DK_RECV_FILE);
             c->dlast_ms = now;
             return true;
         }
-        if (since(c->dstart_ms) > DATA_CONNECT_TIMEOUT_MS) {
+        /* Passive mode: not connected yet, check timeout. Active mode: data_connect_wait
+           already called data_finish() on failure (or timeout). */
+        if (c->pasv_sock >= 0 && since(c->dstart_ms) > DATA_CONNECT_TIMEOUT_MS) {
             ui_log("data connection timed out");
             data_finish(c, -ETIMEDOUT);
             return true;
