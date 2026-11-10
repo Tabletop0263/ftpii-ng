@@ -104,7 +104,7 @@ void ui_tick(void) {
     fmt_size(sp, sizeof(sp), speed);
     fmt_size(tot, sizeof(tot), (double)total_bytes);
 
-    printf("\x1b[2J\x1b[1;1H");
+    printf("\x1b[H\x1b[J");
     printf("\x1b[36;1mftpii-ng 1.0\x1b[37;0m  fast FTP for Wii\n");
     printf("ftp://%s:%u\n", ip_str, port_no);
     printf("SD: %s   USB: %s   Clients: %d\n", sd_ok ? "ok" : "--", usb_ok ? "ok" : "--", nclients);
@@ -113,6 +113,7 @@ void ui_tick(void) {
     if (active_xfers > 0) {
         printf("%s %s\n", xfer_up ? "UP  " : "DOWN", xfer_name);
         int fill = (int)(speed / (6.0f * 1048576.0f) * 30.0f);
+        if (fill < 0) fill = 0;
         if (fill > 30) fill = 30;
         char bar[32];
         int i;
@@ -130,5 +131,5 @@ void ui_tick(void) {
         u32 idx = (log_count - shown + i) % LOG_LINES;
         printf("%s\n", log_lines[idx]);
     }
-    printf("\x1b[24;1HHOME/START: exit    B: remount SD/USB");
+    printf("\x1b[24;1HHOME/START: exit    B: remount SD/USB\n");
 }
