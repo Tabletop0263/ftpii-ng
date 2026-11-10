@@ -8,8 +8,6 @@
 #include <strings.h>
 #include <time.h>
 #include <sys/socket.h>
-#include <sys/select.h>
-#include <sys/time.h>
 #include <unistd.h>
 
 #include "ftp.h"
@@ -202,22 +200,23 @@ static bool data_connect_wait(client_t *c) {
         data_finish(c, -ETIMEDOUT);
         return true;
     }
-    fd_set wf;
-    FD_ZERO(&wf);
-    FD_SET(c->dsock, &wf);
-    struct timeval tv;
-    u64 remaining = DATA_CONNECT_TIMEOUT_MS - since(c->dstart_ms);
-    tv.tv_sec = (long)(remaining / 1000);
-    tv.tv_usec = (long)(remaining % 1000) * 1000;
-    if (select(c->dsock + 1, NULL, &wf, NULL, &tv) <= 0) {
-        return false; /* still pending */
+    /* Poll with usleep; check SO_ERROR to see if connect() completed. */
+    u64 elapsed = since(c->dstart_ms);
+    if (elapsed >= DATA_CONNECT_TIMEOUT_MS) {
+        ui_log("data connection timed out");
+        data_finish(c, -ETIMEDOUT);
+        return true;
     }
+    usleep(5000); /* 5ms poll interval */
     int err = 0;
     socklen_t el = sizeof(err);
     if (getsockopt(c->dsock, SOL_SOCKET, SO_ERROR, &err, &el) < 0) {
         /* getsockopt itself failed: report errno as the connect error. */
         data_finish(c, -errno);
         return true;
+    }
+    if (err == EINPROGRESS || err == EALREADY || err == EAGAIN) {
+        return false; /* still pending */
     }
     if (err != 0) {
         data_finish(c, -err);
@@ -295,7 +294,7 @@ static bool data_poll(client_t *c) {
             }
         }
         if (!c->dconnected) {
-            /* Active-mode connect in progress: wait for it to complete via select+SO_ERROR. */
+            /* Active-mode connect in progress: poll for completion via SO_ERROR. */
             if (c->pasv_sock < 0 && !data_connect_wait(c)) return false;
         }
         if (c->dconnected) {

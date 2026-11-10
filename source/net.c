@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/fcntl.h>
-#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -127,16 +126,10 @@ s32 net_send_all(s32 s, const void *buf, s32 len, u32 timeout_ms) {
             len -= r;
             start = now_ms();
         } else if (r == -EAGAIN) {
-            /* Wait until the socket is writable again, honoring timeout_ms. */
-            fd_set wf;
-            FD_ZERO(&wf);
-            FD_SET(s, &wf);
-            struct timeval tv;
+            /* Poll: sleep briefly and retry, honoring timeout_ms. */
             u64 elapsed = since(start);
             if (elapsed >= timeout_ms) { result = -ETIMEDOUT; break; }
-            tv.tv_sec = (long)((timeout_ms - elapsed) / 1000);
-            tv.tv_usec = (long)((timeout_ms - elapsed) % 1000) * 1000;
-            if (select(s + 1, NULL, &wf, NULL, &tv) <= 0) { result = -ETIMEDOUT; break; }
+            usleep(5000); /* 5ms poll interval */
         } else {
             result = r < 0 ? r : -ENODATA;
             break;
