@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
     bool network_down = true;
     while (!quit_flag) {
         if (network_down) {
-            if (server >= 0) { net_close(server); server = -1; }
+            if (server >= 0) { net_close_blocking(server); server = -1; }
             ftp_shutdown();
             if (!net_start(&quit_flag)) break;
             server = net_create_server(FTP_PORT);

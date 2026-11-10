@@ -53,12 +53,6 @@ typedef struct {
     bool xfer_counted;
 } client_t;
 
-/* ms elapsed since t; never underflows if t is slightly in the future */
-u64 since(u64 t) {
-    u64 n = now_ms();
-    return n > t ? n - t : 0;
-}
-
 static client_t *clients[MAX_CLIENTS];
 static char *password = NULL;
 static u16 pasv_port_next = 40000;
@@ -180,7 +174,6 @@ static void data_cleanup(client_t *c, int *close_result) {
         c->dsock = -1;
     }
     close_pasv(c);
-    c->have_port = false;
     c->dk = DK_NONE;
     c->dconnected = false;
     if (c->xfer_counted) {
