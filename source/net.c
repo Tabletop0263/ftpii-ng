@@ -22,6 +22,12 @@ u64 now_ms(void) {
     return ticks_to_millisecs(gettime());
 }
 
+/* Elapsed milliseconds since t; never underflows if t is slightly in the future. */
+u64 since(u64 t) {
+    u64 n = now_ms();
+    return n > t ? n - t : 0;
+}
+
 const char *net_ip_string(void) {
     return ip_string;
 }
