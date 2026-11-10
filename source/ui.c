@@ -143,7 +143,7 @@ static bool gx_init(void) {
                  gx_rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 
     GX_Init();
-    GX_SetCopyClear(C_BG, 0x00ffffff);
+    { GXColor clear = { 0x1a, 0x1a, 0x2e, 0xff }; GX_SetCopyClear(clear, 0x00ffffff); }
     GX_SetCopyDisp(gx_rmode->fbWidth, gx_rmode->efbHeight,
                    gx_rmode->fbWidth, gx_rmode->xfbHeight);
     GX_SetDispCopyYScale((f32)gx_rmode->xfbHeight / (f32)gx_rmode->efbHeight);
@@ -206,7 +206,7 @@ static void gx_begin_frame(void) {
 /* End frame: send to XFB and wait for VSync. */
 static void gx_end_frame(void) {
     GX_DrawDone();
-    GX_CopyDisp(gx_xfb, GX_TRUE);
+    GX_CopyDisp(gx_xfb, TRUE);
     GX_DrawDone();
     VIDEO_SetNextFramebuffer(gx_xfb);
     VIDEO_Flush();
