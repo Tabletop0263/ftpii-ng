@@ -142,16 +142,14 @@ static bool gx_init(void) {
                  gx_rmode->fbWidth - 40, gx_rmode->xfbHeight - 40,
                  gx_rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 
-    GX_Init();
+    GX_Init(NULL, 0);
     { GXColor clear = { 0x1a, 0x1a, 0x2e, 0xff }; GX_SetCopyClear(clear, 0x00ffffff); }
-    GX_SetCopyDisp(gx_rmode->fbWidth, gx_rmode->efbHeight,
-                   gx_rmode->fbWidth, gx_rmode->xfbHeight);
     GX_SetDispCopyYScale((f32)gx_rmode->xfbHeight / (f32)gx_rmode->efbHeight);
     GX_SetScissor(0, 0, gx_rmode->fbWidth, gx_rmode->efbHeight);
     GX_SetDispCopySrc(0, 0, gx_rmode->fbWidth, gx_rmode->efbHeight);
     GX_SetDispCopyDst(gx_rmode->fbWidth, gx_rmode->xfbHeight);
     GX_SetCopyFilter(0, 0, 0, 0);
-    GX_SetPixelFormat(GX_PF_RGB565_Z16, GX_ZC_LINEAR);
+    GX_SetPixelFmt(GX_PF_RGB565_Z16, GX_ZC_LINEAR);
 
     /* Orthographic 2D projection matching screen pixels. */
     GX_SetViewport(0, 0, gx_rmode->fbWidth, gx_rmode->efbHeight, 0, 1);
@@ -177,7 +175,6 @@ static bool gx_init(void) {
 static void gx_shutdown(void) {
     if (!gx_ready) return;
     gx_ready = false;
-    if (gx_xfb) SYS_FreeFramebuffer(gx_xfb);
     gx_xfb = NULL;
 }
 
@@ -186,7 +183,6 @@ static void gx_begin_frame(void) {
     GX_SetDrawDone();
     GX_DrawDone();
     GX_SetViewport(0, 0, gx_rmode->fbWidth, gx_rmode->efbHeight, 0, 1);
-    GX_InvalidateVtxCache();
     GX_InvalidateTexAll();
 
     /* Clear to background color. */
@@ -279,7 +275,7 @@ void ui_init(void) {
     last_draw = gettime();
     dirty = true;
     draw_all();
-    console_clear();
+    consoleClear();
 }
 
 void ui_log(const char *fmt, ...) {
@@ -360,7 +356,7 @@ void ui_tick(void) {
     draw_all();
 
     /* --- Console text overlay pass --- */
-    console_clear();
+    consoleClear();
 
     /* Header text. */
     printf("\x1b[37;1mftpii-ng\x1b[0m  fast, cool FTP for Wii\n");
